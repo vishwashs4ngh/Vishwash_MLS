@@ -1,0 +1,5 @@
+
+# virtualenvs
+onnxenv/
+.venv/
+.venv_local/

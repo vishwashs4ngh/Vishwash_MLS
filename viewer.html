@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>MLS ONNX Viewer</title>
+<style>
+  :root{
+    --bg:#0f1724; --card:#0b1220; --muted:#9aa6b2; --accent:#ff6b6b; --accent2:#6be0ff;
+    --glass: rgba(255,255,255,0.03);
+  }
+  html,body{height:100%; margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,'Helvetica Neue',Arial;}
+  body{background:linear-gradient(180deg,#071026 0%, #071421 60%); color:#dbe7ef; -webkit-font-smoothing:antialiased;}
+  .wrap{max-width:920px; margin:14px auto; padding:12px;}
+  .card{background:var(--card); border-radius:14px; padding:14px; box-shadow:0 6px 24px rgba(2,6,23,0.6); margin-bottom:12px;}
+  h1{font-size:18px;margin:0 0 8px 0}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap;}
+  .col{flex:1 1 0;}
+  button{background:linear-gradient(90deg,var(--accent),#ff8b8b); border:0; color:#041021; padding:10px 14px; border-radius:10px; font-weight:700;}
+  input[type=range]{width:100%}
+  label.small{font-size:12px;color:var(--muted)}
+  pre{background:transparent; color:var(--muted); margin:8px 0; white-space:pre-wrap; font-size:13px}
+  .imgwrap{display:flex; gap:8px; flex-wrap:wrap; justify-content:center}
+  img.viewer{max-width:100%; height:auto; border-radius:8px; box-shadow:0 6px 18px rgba(2,6,23,0.6);}
+  .stats{display:flex; gap:8px; flex-wrap:wrap; margin-top:10px}
+  .stat{background:var(--glass); padding:8px 10px; border-radius:8px; min-width:100px; text-align:center}
+  .muted{color:var(--muted); font-size:13px}
+  .links{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
+  a.small-link{color:var(--accent2); font-weight:600; text-decoration:none; background:rgba(255,255,255,0.02); padding:6px 8px; border-radius:8px;}
+  footer{color:var(--muted); font-size:12px; text-align:center; margin-top:14px}
+  @media (min-width:720px){ .row > .col{flex:1} .stats .stat{min-width:140px} h1{font-size:20px} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <h1>MLS ONNX Mobile Viewer</h1>
+      <div class="row">
+        <div class="col">
+          <label class="small">ONNX model</label>
+          <div class="muted" id="modelPath">checkpoints/mls3d.onnx</div>
+        </div>
+        <div class="col">
+          <label class="small">Input volume</label>
+          <div class="muted" id="inputPath">data/mls/train/vol_001.npy</div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="row">
+        <div style="flex:1 1 260px">
+          <label class="small">Probability threshold: <strong id="thrVal">0.50</strong></label>
+          <input id="thr" type="range" min="0.0" max="1.0" value="0.5" step="0.01" />
+        </div>
+        <div style="width:12px"></div>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <button id="runBtn">Run Inference</button>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:12px; justify-content:space-between; flex-wrap:wrap">
+          <div>
+            <div class="muted">Last run</div>
+            <div id="lastRun" style="font-weight:700">Never</div>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <a id="overlayLink" class="small-link" href="#" target="_blank" style="display:none">Open overlay</a>
+            <a id="probsLink" class="small-link" href="#" target="_blank" style="display:none">Download probs (.npz)</a>
+            <a id="maskLink" class="small-link" href="#" target="_blank" style="display:none">Download mask (.nii.gz)</a>
+          </div>
+        </div>
+
+        <div style="height:10px"></div>
+        <div class="imgwrap">
+          <img id="overlayImg" class="viewer" src="" alt="overlay image" style="display:none" />
+        </div>
+
+        <div class="stats" id="stats" style="margin-top:12px; display:none">
+          <div class="stat">
+            <div class="muted">MLS (mm)</div>
+            <div id="mlsVal" style="font-weight:700">-</div>
+          </div>
+          <div class="stat">
+            <div class="muted">Probs min/max</div>
+            <div id="pminmax" style="font-weight:700">-</div>
+          </div>
+          <div class="stat">
+            <div class="muted">Probs mean</div>
+            <div id="pmean" style="font-weight:700">-</div>
+          </div>
+          <div class="stat">
+            <div class="muted">Saved files</div>
+            <div id="filesCnt" style="font-weight:700">0</div>
+          </div>
+        </div>
+
+        <pre id="log" style="display:none"></pre>
+      </div>
+    </div>
+
+    <footer>
+      Tip: use the threshold slider and tap <strong>Run Inference</strong>. The overlay and detailed report will appear below.
+    </footer>
+  </div>
+
+<script>
+const runBtn = document.getElementById('runBtn');
+const thr = document.getElementById('thr');
+const thrVal = document.getElementById('thrVal');
+const overlayImg = document.getElementById('overlayImg');
+const overlayLink = document.getElementById('overlayLink');
+const probsLink = document.getElementById('probsLink');
+const maskLink = document.getElementById('maskLink');
+const lastRun = document.getElementById('lastRun');
+const stats = document.getElementById('stats');
+const mlsVal = document.getElementById('mlsVal');
+const pminmax = document.getElementById('pminmax');
+const pmean = document.getElementById('pmean');
+const filesCnt = document.getElementById('filesCnt');
+const logEl = document.getElementById('log');
+
+thr.addEventListener('input', () => { thrVal.innerText = parseFloat(thr.value).toFixed(2); });
+
+async function runInference(){
+  runBtn.disabled = true;
+  runBtn.innerText = "Running..."
+  stats.style.display = "none";
+  logEl.style.display = "none";
+
+  const body = { threshold: parseFloat(thr.value) };
+  try {
+    const resp = await fetch("/run", {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify(body)
+    });
+    const j = await resp.json();
+
+    lastRun.innerText = new Date().toLocaleString();
+
+    if(!j.success){
+      runBtn.disabled = false;
+      runBtn.innerText = "Run Inference";
+      logEl.style.display = "block";
+      logEl.innerText = j.traceback || JSON.stringify(j.messages, null, 2);
+      return;
+    }
+
+    // show overlay image
+    const overlayPath = j.files.overlay_png || j.files.overlay || null;
+    if(overlayPath){
+      // overlayPath is local path like outputs/overlay_onnx_1.png
+      const name = overlayPath.split("/").pop().split("\\").pop();
+      overlayImg.src = "/overlay/" + name;
+      overlayImg.style.display = "block";
+      overlayLink.style.display = "inline-block";
+      overlayLink.href = "/overlay/" + name;
+    } else {
+      overlayImg.style.display = "none";
+      overlayLink.style.display = "none";
+    }
+
+    // show probs and mask links if present (they are file paths)
+    if(j.files.probs_npz){
+      const name = j.files.probs_npz.split("/").pop().split("\\").pop();
+      probsLink.style.display = "inline-block";
+      probsLink.href = "/overlay/" + name; // /overlay will serve files from outputs (server maps overlay->outputs)
+      probsLink.download = name;
+    } else { probsLink.style.display="none"; }
+
+    if(j.files.mask_nii){
+      const name = j.files.mask_nii.split("/").pop().split("\\").pop();
+      maskLink.style.display = "inline-block";
+      maskLink.href = "/overlay/" + name;
+      maskLink.download = name;
+    } else { maskLink.style.display="none"; }
+
+    // stats
+    mlsVal.innerText = j.files.mls_mm===undefined ? "-" : (j.files.mls_mm===null ? "-" : j.files.mls_mm.toFixed(3));
+    pminmax.innerText = (j.stats.probs_min||"-") + " / " + (j.stats.probs_max||"-");
+    pmean.innerText = (j.stats.probs_mean||"-").toFixed ? j.stats.probs_mean.toFixed(4) : j.stats.probs_mean;
+    filesCnt.innerText = Object.keys(j.files||{}).length;
+
+    stats.style.display = "flex";
+    runBtn.disabled = false;
+    runBtn.innerText = "Run Inference";
+    logEl.style.display = "block";
+    logEl.innerText = j.messages.join("\n");
+  } catch(err){
+    runBtn.disabled = false;
+    runBtn.innerText = "Run Inference";
+    logEl.style.display = "block";
+    logEl.innerText = "Request failed: " + (err.message || err);
+  }
+}
+
+runBtn.addEventListener('click', runInference);
+
+// auto-run once on page load for convenience
+window.addEventListener('load', () => {
+  setTimeout(()=> runInference(), 300);
+});
+</script>
+</body>
+</html>
