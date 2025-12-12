@@ -1,117 +1,97 @@
-Vishwash_MLS – Midline Shift Detection using 3D UNet
+# 🌐 Vishwash_MLS – Midline Shift Detection (3D UNet)
 
-This repository contains a deep-learning pipeline for Midline Shift (MLS) detection from brain CT scans.
-It uses a lightweight 3D UNet architecture to segment midline-related structures and estimate MLS for diagnostic support.
+![Python](https://img.shields.io/badge/Python-3.10%2B-blue)
+![PyTorch](https://img.shields.io/badge/PyTorch-3D%20UNet-red)
+![Status](https://img.shields.io/badge/Project-Active-success)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
 
-📌 Features
+A complete deep-learning pipeline for **Midline Shift (MLS)** detection from brain CT scans using a lightweight **3D UNet** architecture.  
+Supports PyTorch + ONNX inference, MLS computation in millimeters, and visualization outputs.
 
-3D UNet model designed for low-slice CT volumes
+---
 
-Training, validation and inference scripts
+## ⭐ Features
+- ⚙️ 3D UNet for volumetric segmentation  
+- 📈 Computes MLS (Midline Shift) in **mm**  
+- 🧪 Training + inference pipeline included  
+- 🚀 ONNX export + CPU inference  
+- 🖼 Saves masks, overlays, NIfTI files  
+- 📂 Supports NIfTI (`.nii/.nii.gz`) and NumPy (`.npy`)  
 
-MLS computation (midline deviation in millimeters)
+---
 
-Support for NIfTI (.nii, .nii.gz) and NumPy (.npy) volumes
+## 🚀 Quickstart
 
-ONNX export & CPU-friendly inference (optional)
-
-🚀 Quickstart
-1. Create virtual environment + install dependencies
+### 1️⃣ Create & activate virtual environment
+```bash
 python -m venv venv
 venv\Scripts\activate
 pip install -r requirements.txt
 
-2. Prepare your dataset
 
-Place preprocessed CT volumes into a directory, for example:
+**2️⃣ Prepare dataset**
 
+Place your preprocessed CT volumes here:
 data/mls/
-    vol_001.nii.gz
-    vol_002.nii.gz
-    ...
+    ├── vol_001.nii.gz
+    ├── vol_002.nii.gz
+    └── ...
 
 
-Each volume should already be resampled/windowed according to your preprocessing pipeline.
-
-3. Train the 3D UNet
+**3️⃣ Train the 3D UNet**
 python src/trainer.py --train_dir data/mls --epochs 10 --out checkpoints/mls3d.pth
 
-
-This saves the trained model at:
-
-checkpoints/mls3d.pth
-
-4. Run inference
+**4️⃣ Run inference**
 python src/inference.py --model checkpoints/mls3d.pth --input path/to/volume.nii.gz
 
-
-The script outputs:
-
-segmentation mask
-
+Outputs include:
 MLS value (mm)
+segmentation mask
+NIfTI results
+overlay PNGs
 
-optional visual overlays
+**🧠 What is Midline Shift?**
 
-📦 Project Structure
+Midline Shift (MLS) is a key radiological metric used in:
+traumatic brain injury
+hemorrhage
+tumors causing mass effect
+edema or swelling
+
+Even 2–5 mm deviation can be clinically significant.
+This project automatically measures MLS using predicted midline structures and voxel spacing.
+
+📦 Project Structure:
 Vishwash_MLS/
 │
 ├── src/
-│   ├── models/          # 3D UNet architecture
-│   ├── dataset/         # loading & preprocessing
-│   ├── utils/           # MLS computation + helpers
-│   ├── trainer.py       # model training
-│   └── inference.py     # inference pipeline
+│   ├── models/              # 3D UNet
+│   ├── dataset/             # loading + preprocessing
+│   ├── utils/               # MLS measurement
+│   ├── trainer.py           # training pipeline
+│   └── inference.py         # inference pipeline
 │
-├── checkpoints/         # trained weights (not included)
-├── data/                # dataset (ignored in git)
-├── requirements.txt
-└── README.md
+├── checkpoints/             # trained models
+├── data/                    # dataset (ignored by git)
+├── export_onnx.py           # ONNX exporter
+├── test_onnx_infer_verbose.py
+├── app.py                   # API / viewer
+└── requirements.txt
 
-🧠 About Midline Shift
+⚡ ONNX Export (Optional)
+Export: python export_onnx.py
 
-Midline Shift is a crucial indicator in:
+Run ONNX inference: python test_onnx_infer_verbose.py
 
-traumatic brain injury
+📲** Web API / Viewer**
+Start server: python app.py --serve --onnx checkpoints/mls3d.onnx --host 0.0.0.0 --port 7860
 
-intracranial hemorrhage
-
-mass effect conditions
-
-Accurate MLS measurement can guide emergency treatment decisions.
-
-This model estimates MLS by:
-
-segmenting midline-related regions
-
-extracting symmetry deviations
-
-measuring anatomical displacement in millimeters
-
-🔧 Additional Tools (Optional)
-
-You may export the PyTorch model to ONNX for faster CPU inference:
-
-python export_onnx.py
+Includes:
+Upload volume
+Compute MLS
+Display mask + overlays
 
 
-And run ONNX-based inference:
 
-python test_onnx_infer.py
 
-🤝 Contributions
 
-Feel free to open issues or pull requests if you'd like to improve:
-
-model architecture
-
-training pipeline
-
-inference stability
-
-MLS calculation
-
-📬 Contact
-
-Author: Vishwash Singh
-GitHub: @vishwashs4ngh
